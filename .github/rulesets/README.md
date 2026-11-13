@@ -12,8 +12,9 @@ After a change merges, a maintainer applies it with the API.
 - Changes arrive through a pull request, merged with a merge commit.
   Squash and rebase merges aren't allowed, because they break commit signatures.
 - No approving review is required, because the repository has one maintainer.
-- No status checks are required yet.
-  Add them to the ruleset when CI exists, since a required check that never reports blocks every merge.
+- The CI jobs `Format`, `Lint`, `Evaluate flake` and `Build and test` must pass, and the branch must be up to date with `main` before merging.
+  Each check is tied to the GitHub Actions app, so another app can't report a pass.
+  Add a new job here only after it has reported on `main`, since a required check that never reports blocks every merge.
 
 ## Applying a change
 
