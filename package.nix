@@ -5,8 +5,19 @@
   pkg-config,
   dbus,
   pam,
+  python3,
+  gobject-introspection,
+  wrapGAppsHook4,
+  gtk4,
+  libadwaita,
+  pango,
+  libnotify,
 }:
 
+let
+  # The auth dialog is a PyGObject script.
+  pythonEnv = python3.withPackages (ps: [ ps.pygobject3 ]);
+in
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "immurok";
   version = "0.9.4";
@@ -20,8 +31,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   cargoHash = "sha256-iohheKYsPlw+LuZVz+900Adbr22RM4/Yqtn6K2d3oSA=";
 
-  # The settings app (immurok-gui) is packaged separately, so the daemon,
-  # CLI and session agent don't pull in GTK.
+  # The settings app (immurok-gui) is packaged separately, so Cargo doesn't
+  # build the GTK crates. The session agent's dialog still uses GTK through
+  # Python, below.
   cargoBuildFlags = [
     "--workspace"
     "--exclude"
@@ -42,12 +54,22 @@ rustPlatform.buildRustPackage (finalAttrs: {
     make -C pam test
   '';
 
-  nativeBuildInputs = [ pkg-config ];
+  nativeBuildInputs = [
+    pkg-config
+    gobject-introspection # typelib setup hook, for the dialog
+    wrapGAppsHook4
+  ];
 
   buildInputs = [
     dbus # libdbus-sys, used by the BlueZ client
     pam # libpam, linked by the PAM module
+    gtk4 # typelibs for the dialog
+    libadwaita
+    pango
   ];
+
+  # Wrap only the dialog; the Rust binaries don't need the GApps variables.
+  dontWrapGApps = true;
 
   # The PAM module is plain C and has its own Makefile.
   postBuild = ''
@@ -58,6 +80,18 @@ rustPlatform.buildRustPackage (finalAttrs: {
     install -Dm755 pam/pam_immurok.so $out/lib/security/pam_immurok.so
     install -Dm644 packaging/dbus/immurok.conf $out/share/dbus-1/system.d/immurok.conf
     install -Dm644 packaging/polkit/49-immurok.rules $out/share/polkit-1/rules.d/49-immurok.rules
+
+    # The session agent looks for the dialog next to its own binary.
+    install -Dm755 scripts/immurok-auth-dialog $out/bin/immurok-auth-dialog
+    substituteInPlace $out/bin/immurok-auth-dialog \
+      --replace-fail "#!/usr/bin/python3" "#!${pythonEnv.interpreter}"
+  '';
+
+  preFixup = ''
+    wrapProgram $out/bin/immurok-auth-dialog "''${gappsWrapperArgs[@]}"
+    # notify-send shows the agent's desktop notifications.
+    wrapProgram $out/bin/immurok-session-agent \
+      --prefix PATH : ${lib.makeBinPath [ libnotify ]}
   '';
 
   meta = {
