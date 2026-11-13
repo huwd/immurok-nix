@@ -17,6 +17,9 @@
 let
   # The auth dialog is a PyGObject script.
   pythonEnv = python3.withPackages (ps: [ ps.pygobject3 ]);
+  # The daemon runs `python3 ble-notify-helper.py` for all of its Bluetooth
+  # I/O, and the helper imports dbus_fast.
+  bleHelperEnv = python3.withPackages (ps: [ ps.dbus-fast ]);
 in
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "immurok";
@@ -49,9 +52,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     "--skip=tty::tests::pid_1_is_not_mine"
   ];
 
-  # Upstream's tests for the PAM module's C helpers.
+  # Upstream's tests for the PAM module's C helpers and the Bluetooth helper.
   postCheck = ''
     make -C pam test
+    ${bleHelperEnv.interpreter} scripts/test-ble-notify-helper.py
   '';
 
   nativeBuildInputs = [
@@ -85,10 +89,16 @@ rustPlatform.buildRustPackage (finalAttrs: {
     install -Dm755 scripts/immurok-auth-dialog $out/bin/immurok-auth-dialog
     substituteInPlace $out/bin/immurok-auth-dialog \
       --replace-fail "#!/usr/bin/python3" "#!${pythonEnv.interpreter}"
+
+    # The daemon finds its Bluetooth helper through IMMUROK_HELPER_DIR.
+    install -Dm755 scripts/ble-notify-helper.py $out/libexec/immurok/ble-notify-helper.py
   '';
 
   preFixup = ''
     wrapProgram $out/bin/immurok-auth-dialog "''${gappsWrapperArgs[@]}"
+    wrapProgram $out/bin/immurok-daemon \
+      --set IMMUROK_HELPER_DIR $out/libexec/immurok \
+      --prefix PATH : ${lib.makeBinPath [ bleHelperEnv ]}
     # notify-send shows the agent's desktop notifications.
     wrapProgram $out/bin/immurok-session-agent \
       --prefix PATH : ${lib.makeBinPath [ libnotify ]}
