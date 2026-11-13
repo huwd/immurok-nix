@@ -13,6 +13,11 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
     {
+      packages = forAllSystems (pkgs: rec {
+        immurok = pkgs.callPackage ./package.nix { };
+        default = immurok;
+      });
+
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
           # Tools that run on the build machine.
