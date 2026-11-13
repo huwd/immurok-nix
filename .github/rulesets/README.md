@@ -1,7 +1,6 @@
 # Rulesets
 
 The repository rulesets, defined as JSON so that changes to them go through review.
-The approach follows [account-interventions-service](https://github.com/govuk-one-login/account-interventions-service/tree/main/.github/rulesets).
 
 GitHub doesn't apply these files by itself.
 After a change merges, a maintainer applies it with the API.
