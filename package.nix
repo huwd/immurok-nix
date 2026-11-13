@@ -47,9 +47,14 @@ rustPlatform.buildRustPackage (finalAttrs: {
   cargoTestFlags = finalAttrs.cargoBuildFlags;
 
   checkFlags = [
-    # Asserts that PID 1 isn't owned by the current user. In the build
+    # These two assume PID 1 isn't owned by the current user. In the build
     # sandbox the builder is PID 1 and is the current user.
     "--skip=tty::tests::pid_1_is_not_mine"
+    # It also assumes PID 1 has no terminal. The builder's output is a
+    # terminal, and the sandbox has its own /dev/pts. The path the builder
+    # reports can name a pseudo-terminal that another test has opened, so
+    # whether the test passes depends on how those numbers line up.
+    "--skip=tty::tests::renderer_ignores_pids_that_are_not_ours"
     # Races on how the terminal delivers output: it stops reading once the
     # text appears, then asserts that a newline written separately has
     # arrived. It failed in 12 of 300 runs under CPU load, and 1 of 300 on an
