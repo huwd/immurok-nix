@@ -4,7 +4,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs =
-    { nixpkgs, ... }:
+    { self, nixpkgs, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -16,6 +16,12 @@
       packages = forAllSystems (pkgs: rec {
         immurok = pkgs.callPackage ./package.nix { };
         default = immurok;
+      });
+
+      nixosModules.default = import ./module.nix { inherit self; };
+
+      checks = forAllSystems (pkgs: {
+        module = import ./tests/module.nix { inherit self pkgs; };
       });
 
       devShells = forAllSystems (pkgs: {

@@ -6,15 +6,51 @@ The upstream Linux client is [immurok/app-linux-rs](https://github.com/immurok/a
 It ships `.deb`, `.rpm` and Arch packages that assume a conventional filesystem layout, so it doesn't install on NixOS as released.
 This repository packages it from source.
 
-**Status:** work in progress.
-Nothing here builds yet.
+**Status:** work in progress, and not yet tested with a real device.
+The package builds and passes upstream's tests, and the module passes a VM test.
+Pairing, enrolment and the PAM hooks haven't been tried.
 
-## Planned contents
+## Contents
 
-- `package.nix`: the derivation for the daemon, CLI, session agent, GUI and PAM module.
+- `package.nix`: upstream's daemon, CLI, session agent and PAM module, with the Bluetooth helper and the dialog the daemon and agent run.
+  The settings app (`immurok-gui`) isn't packaged yet.
 - `module.nix`: a NixOS module under `services.immurok`.
-  It sets up the daemon and its system user, the D-Bus policy and Bluetooth.
-  PAM hooks are separate options that default to off.
+  It sets up the daemon and its system user, the D-Bus policy, Bluetooth and the session agent.
+  It doesn't touch PAM, so enabling it can't change how a login or `sudo` works.
+- `tests/module.nix`: a VM test of the module.
+
+## Usage
+
+Add the flake as an input, import the module and enable it:
+
+```nix
+{
+  inputs.immurok.url = "github:huwd/immurok-nix";
+
+  # In your NixOS configuration:
+  imports = [ inputs.immurok.nixosModules.default ];
+  services.immurok.enable = true;
+}
+```
+
+Then pair the key with `immurok-cli pair`.
+
+Options:
+
+- `services.immurok.package`: the package to use.
+- `services.immurok.sessionAgent.enable`: run the session agent for every user.
+  It's on by default.
+- `services.immurok.lockScreen.enable`: allow the daemon to lock and unlock the session through logind.
+  It's off by default, because it grants the `immurok` user that permission without authentication.
+
+Don't turn on the `ssh_takeover` setting if `~/.ssh/config` is a read-only file managed by another tool.
+The session agent rewrites that file when the setting is on.
+
+## Limits
+
+- Upstream's own installer, its PAM helper and the settings app's PAM buttons edit `/etc/pam.d`, which NixOS generates, so they can't work here.
+- A NixOS VM has no Bluetooth adapter, so the test can't cover pairing or the device.
+- The package's closure is large, mostly because of GTK4 and Python for the dialog.
 
 ## Decisions
 
