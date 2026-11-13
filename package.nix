@@ -50,6 +50,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
     # Asserts that PID 1 isn't owned by the current user. In the build
     # sandbox the builder is PID 1 and is the current user.
     "--skip=tty::tests::pid_1_is_not_mine"
+    # Races on how the terminal delivers output: it stops reading once the
+    # text appears, then asserts that a newline written separately has
+    # arrived. It failed in 12 of 300 runs under CPU load, and 1 of 300 on an
+    # idle machine.
+    "--skip=tty::tests::spinner_draws_animates_and_leaves_a_final_line"
   ];
 
   # Upstream's tests for the PAM module's C helpers and the Bluetooth helper.
