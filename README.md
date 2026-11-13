@@ -46,6 +46,45 @@ Options:
 Don't turn on the `ssh_takeover` setting if `~/.ssh/config` is a read-only file managed by another tool.
 The session agent rewrites that file when the setting is on.
 
+## Using the key for `sudo` and other logins
+
+The module doesn't add the key to any login path, and that is deliberate.
+
+- **NixOS generates `/etc/pam.d`.** There's no file to edit by hand, and upstream's installer, its PAM helper and the settings app's PAM buttons all edit those files, so they can't work here.
+- **It's a policy, and one that can lock you out.** Which services accept the key, and whether it comes before or after your password or another fingerprint reader, decides how logging in works on a given machine. A wrong rule can break `sudo`. That choice belongs in the configuration of the machine, where it is reviewed and rolled back like any other change, and not in a package that other people install.
+
+To use the key for `sudo`, add a PAM rule in your own configuration:
+
+```nix
+{ config, ... }:
+{
+  security.pam.services.sudo.rules.auth.immurok = {
+    # Just before the password rule, so the key is tried first.
+    order = config.security.pam.services.sudo.rules.auth.unix.order - 10;
+    control = "sufficient";
+    modulePath = "${config.services.immurok.package}/lib/security/pam_immurok.so";
+    # Wait ten seconds for a touch, not the default forty.
+    args = [ "timeout=10" ];
+  };
+}
+```
+
+This generates `auth sufficient …/pam_immurok.so timeout=10` ahead of the password rule in `/etc/pam.d/sudo`.
+
+- **Keep `control = "sufficient"`.** A key that doesn't answer then falls through to the next rule, and your password still works. With `required` or `requisite`, a missing or flat key would block `sudo` altogether.
+- **If the daemon isn't running,** the module fails to connect within two seconds and falls through to the password. If the daemon is running and the key isn't there, it waits for the timeout, and a keypress at the prompt gives up early.
+- **If you also use `fprintd`,** set `order` relative to its rule instead, to choose whether the key or the laptop reader goes first.
+- **Other services** such as `polkit-1` use the same pattern under `security.pam.services.<name>`.
+  The one exception is `gdm-password`, the GNOME screen-unlock service.
+  It has no terminal, so the module steps aside and your password rule handles it.
+  The daemon unlocks the session itself when a finger matches, through logind, which needs `services.immurok.lockScreen.enable`.
+
+Before relying on it:
+
+1. Pair the key and enrol a finger first, with the module enabled and no PAM rule.
+2. Keep a root shell open in another terminal while you test.
+3. Check `sudo` from a second terminal before closing the first. If something is wrong, the previous generation in the boot menu undoes the change.
+
 ## Limits
 
 - Upstream's own installer, its PAM helper and the settings app's PAM buttons edit `/etc/pam.d`, which NixOS generates, so they can't work here.
