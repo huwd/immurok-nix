@@ -17,7 +17,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b  # v31.11.3
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086  # v31.11.5
 
       - name: Check Nix formatting
         run: find . -name '*.nix' -not -path './.direnv/*' -print0 | xargs -0 nix run --inputs-from . nixpkgs#nixfmt -- --check
@@ -30,7 +30,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b  # v31.11.3
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086  # v31.11.5
 
       - name: statix — antipattern check
         run: nix run --inputs-from . nixpkgs#statix -- check .
@@ -46,7 +46,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b  # v31.11.3
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086  # v31.11.5
 
       - name: nix flake check
         run: nix flake check --no-build
@@ -59,7 +59,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b  # v31.11.3
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086  # v31.11.5
 
       # The package's check phase runs upstream's Rust and C tests.
       - name: Build the package
